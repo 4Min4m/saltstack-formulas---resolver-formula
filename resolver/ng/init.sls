@@ -1,10 +1,12 @@
 {% from slspath + "/map.jinja" import resolver with context %}
 
+{% set is_resolvconf_enabled = resolver.resolvconf.enabled and not resolver.resolvconf.remove %}
+
 {{ sls }}~pkg:
-  {% if resolver.ng.resolvconf.remove %}
-  pkg.purged:
-  {% else %}
+  {% if is_resolvconf_enabled %}
   pkg.installed:
+  {% else %}
+  pkg.purged:
   {% endif %}
     - name: resolvconf
     - require_in:
@@ -12,28 +14,28 @@
 
 {{ sls }}~update-resolv.conf-file:
   file.managed:
-    {% if resolver.ng.resolvconf.enabled and not resolver.ng.resolvconf.remove %}
-    - name: /etc/resolvconf/resolv.conf.d/base
+    {% if is_resolvconf_enabled %}
+    - name: {{ resolver.resolvconf.base_path }}
     {% else %}
-    - name: /etc/resolv.conf
+    - name: {{ resolver.resolvconf.file }}
     - follow_symlinks: False
     {% endif %}
-    - user: {{ resolver.ng.user }}
-    - group: {{ resolver.ng.group }}
+    - user: {{ resolver.user }}
+    - group: {{ resolver.group }}
     - mode: '0644'
     - source: salt://{{ slspath }}/templates/resolv.conf.jinja
     - template: jinja
     - defaults:
-        nameservers: {{ resolver.nameservers|yaml }}
-        searchpaths: {{ resolver.searchpaths|yaml }}
-        options: {{ resolver.options|yaml }}
-        domain: {{ resolver.domain|yaml }}
+        nameservers: {{ resolver.nameservers | yaml }}
+        searchpaths: {{ resolver.searchpaths | yaml }}
+        options: {{ resolver.options | yaml }}
+        domain: {{ resolver.domain | yaml }}
 
-{% if resolver.ng.resolvconf.enabled and not resolver.ng.resolvconf.remove %}
+{% if is_resolvconf_enabled %}
 {{ sls }}~update-resolvconf:
   file.symlink:
     - name: /etc/resolv.conf
-    - target: {{ resolver.ng.resolvconf.file }}
+    - target: {{ resolver.conf_path }}
     - force: True
   cmd.run:
     - name: resolvconf -u
@@ -41,25 +43,22 @@
       - file: {{ sls }}~update-resolv.conf-file
 {% endif %}
 
-# Prevent NetworkManager managing resolv.conf file.
-{% if salt['file.file_exists'](resolver.ng.networkmanager.file)
-      and resolver.ng.networkmanager.managed %}
-
+# Prevent NetworkManager from managing resolv.conf file.
+{% if salt['file.file_exists'](resolver.networkmanager.file) and resolver.networkmanager.managed %}
 {{ sls }}~networkmanager_dns:
   ini.options_present:
-    - name: {{ resolver.ng.networkmanager.file }}
+    - name: {{ resolver.networkmanager.file }}
     - separator: '='
     - strict: False
     - sections:
         main:
-          dns: {{ resolver.ng.networkmanager.dns }}
-    - onlyif: systemctl is-enabled {{ resolver.ng.networkmanager.service }}
+          dns: {{ resolver.networkmanager.dns }}
+    - onlyif: systemctl is-enabled {{ resolver.networkmanager.service }}
     - require:
       - file: {{ sls }}~update-resolv.conf-file
     - watch_in:
       - service: {{ sls }}~networkmanager_dns
   service.running:
-    - name: {{ resolver.ng.networkmanager.service }}
+    - name: {{ resolver.networkmanager.service }}
     - enable: True
-
 {% endif %}
