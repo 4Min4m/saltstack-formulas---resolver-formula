@@ -4,6 +4,22 @@
             'conf_path': '/run/resolvconf/resolv.conf',
             'user': 'root',
             'group': 'root',
+            'domain': salt['grains.get']('domain', 'example.com'),
+            'nameservers': ['8.8.8.8', '8.8.4.4'],
+            'searchpaths': [salt['grains.get']('domain', 'example.com')],
+            'options': [],
+            'resolvconf': {
+                'enabled': True,
+                'remove': False,
+                'file': '/etc/resolv.conf',
+                'base_path': '/etc/resolvconf/resolv.conf.d/base'
+            },
+            'networkmanager': {
+                'file': '/etc/NetworkManager/NetworkManager.conf',
+                'service': 'NetworkManager',
+                'dns': 'none',
+                'managed': True
+            }
         },
         'Debian': {
             'conf_path': '/etc/resolvconf/run/resolv.conf',
@@ -21,5 +37,5 @@
     },
     grain='os',
     base='default',
-    merge=salt['pillar.get']('resolver')
+    merge=salt['pillar.get']('resolver', {})
 ) %}
