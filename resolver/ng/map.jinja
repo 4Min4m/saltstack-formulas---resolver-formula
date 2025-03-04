@@ -25,7 +25,22 @@
 
 # Update dynamic vars.
 {% do salt['defaults.merge'](defaults, {
-    'domain': salt['grains.get']('domain')
+    'domain': salt['grains.get']('domain', 'example.com'),
+    'nameservers': ['8.8.8.8', '8.8.4.4'],
+    'searchpaths': [salt['grains.get']('domain', 'example.com')],
+    'options': [],
+    'resolvconf': {
+        'enabled': True,
+        'remove': False,
+        'file': '/etc/resolv.conf',
+        'base_path': '/etc/resolvconf/resolv.conf.d/base'
+    },
+    'networkmanager': {
+        'file': '/etc/NetworkManager/NetworkManager.conf',
+        'service': 'NetworkManager',
+        'dns': 'none',
+        'managed': True
+    }
 }) %}
 
 # Final var merged with pillar.
