@@ -3,11 +3,7 @@
 #####################################
 {% from slspath + "/map.jinja" import resolver with context %}
 
-{% if salt['pillar.get']('resolver:use_resolvconf', True) %}
-  {% set is_resolvconf_enabled = grains['os_family'] in ('Debian') %}
-{% else %}
-  {% set is_resolvconf_enabled = False %}
-{% endif %}
+{% set is_resolvconf_enabled = resolver.resolvconf.enabled and not resolver.resolvconf.remove %}
 
 resolvconf-manage:
   {% if is_resolvconf_enabled %}
@@ -19,13 +15,12 @@ resolvconf-manage:
     - require_in:
       - file: resolv-file
 
-# Resolver Configuration
 resolv-file:
   file.managed:
     {% if is_resolvconf_enabled %}
-    - name: /etc/resolvconf/resolv.conf.d/base
+    - name: {{ resolver.resolvconf.base_path }}
     {% else %}
-    - name: /etc/resolv.conf
+    - name: {{ resolver.resolvconf.file }}
     {% endif %}
     - user: {{ resolver.user }}
     - group: {{ resolver.group }}
@@ -33,10 +28,10 @@ resolv-file:
     - source: salt://resolver/files/resolv.conf
     - template: jinja
     - defaults:
-        nameservers: {{ salt['pillar.get']('resolver:nameservers', ['8.8.8.8','8.8.4.4']) }}
-        searchpaths: {{ salt['pillar.get']('resolver:searchpaths', [salt['grains.get']('domain'),]) }}
-        options: {{ salt['pillar.get']('resolver:options', []) }}
-        domain: {{ salt['pillar.get']('resolver:domain') }}
+        nameservers: {{ resolver.nameservers | yaml }}
+        searchpaths: {{ resolver.searchpaths | yaml }}
+        options: {{ resolver.options | yaml }}
+        domain: {{ resolver.domain | yaml }}
 
 {% if is_resolvconf_enabled %}
 resolv-update:
